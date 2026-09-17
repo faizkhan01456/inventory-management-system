@@ -10,198 +10,137 @@ import {
     superAdmin,
 } from "@/data/demoData";
 
-/*
-|--------------------------------------------------------------------------
-| Initialize Users
-|--------------------------------------------------------------------------
-*/
+const ADMIN_PROFILE_KEY = "inventory_admin_profile";
 
 export function initializeDemoUsers() {
-    const existingUsers =
-        getStorage(
-            STORAGE_KEYS.USERS,
-            null
-        );
-
-    /*
-     * Existing localStorage users ko
-     * overwrite nahi karna.
-     */
-
-    if (
-        Array.isArray(
-            existingUsers
-        )
-    ) {
-        return existingUsers;
-    }
-
-    setStorage(
+    const existingUsers = getStorage(
         STORAGE_KEYS.USERS,
-        demoUsers
+        null
     );
 
-    return demoUsers;
+    if (!Array.isArray(existingUsers)) {
+        setStorage(
+            STORAGE_KEYS.USERS,
+            demoUsers
+        );
+    }
 }
-
-/*
-|--------------------------------------------------------------------------
-| Get Users
-|--------------------------------------------------------------------------
-*/
 
 export function getUsers() {
-    const storedUsers =
-        getStorage(
-            STORAGE_KEYS.USERS,
-            null
-        );
+    const users = getStorage(
+        STORAGE_KEYS.USERS,
+        null
+    );
 
-    if (
-        Array.isArray(
-            storedUsers
-        )
-    ) {
-        return storedUsers;
+    if (!Array.isArray(users)) {
+        initializeDemoUsers();
+
+        return getStorage(
+            STORAGE_KEYS.USERS,
+            demoUsers
+        );
     }
 
+    return users;
+}
+
+export function saveUsers(users) {
     setStorage(
         STORAGE_KEYS.USERS,
-        demoUsers
+        Array.isArray(users) ? users : []
     );
-
-    return demoUsers;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Find User
-|--------------------------------------------------------------------------
-*/
-
-export function findUserByUsername(
-    username
-) {
-    if (!username) {
-        return null;
-    }
-
-    const users =
-        getUsers();
+export function findUserByUsername(username) {
+    if (!username) return null;
 
     const normalizedUsername =
-        username
+        String(username)
             .trim()
             .toLowerCase();
 
-    return (
-        users.find(
-            (user) =>
-                user.username
-                    ?.trim()
-                    .toLowerCase() ===
-                normalizedUsername
-        ) || null
-    );
+    const users = getUsers();
+
+    return users.find(
+        (user) =>
+            String(user.username || "")
+                .trim()
+                .toLowerCase() ===
+            normalizedUsername
+    ) || null;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Authenticate
-|--------------------------------------------------------------------------
-*/
+function getSuperAdminProfile() {
+    const savedProfile = getStorage(
+        ADMIN_PROFILE_KEY,
+        null
+    );
 
-export function authenticate(
-    username,
-    password
-) {
-    if (
-        !username ||
-        !password
-    ) {
+    if (!savedProfile) {
         return {
-            success: false,
-            message:
-                "Username and password are required.",
+            ...superAdmin,
         };
     }
 
-    const cleanUsername =
-        username.trim();
+    return {
+        ...superAdmin,
+        ...savedProfile,
+    };
+}
 
-    /*
-     * SUPER ADMIN
-     */
+export function authenticate(username, password) {
+    if (!username || !password) {
+        return {
+            success: false,
+            message: "Username and password are required.",
+        };
+    }
 
-    const superAdminUsername =
-        String(
-            superAdmin?.username ||
-                "superadmin"
-        )
+    const normalizedUsername =
+        String(username)
             .trim()
             .toLowerCase();
 
-    const superAdminPassword =
-        String(
-            superAdmin?.password ||
-                "Admin@123"
-        );
+    /*
+     * Super Admin
+     */
+    const adminProfile =
+        getSuperAdminProfile();
 
     if (
-        cleanUsername
-            .toLowerCase() ===
-            superAdminUsername &&
-        String(password) ===
-            superAdminPassword
+        normalizedUsername ===
+            String(
+                adminProfile.username || "superadmin"
+            )
+                .trim()
+                .toLowerCase() &&
+        String(adminProfile.password) ===
+            String(password)
     ) {
-        const adminUser = {
-            id:
-                superAdmin?.id ||
-                "super_admin",
-
-            name:
-                superAdmin?.name ||
-                "Super Admin",
-
-            username:
-                superAdmin?.username ||
-                "superadmin",
-
-            email:
-                superAdmin?.email ||
-                "",
-
-            role: "SUPER_ADMIN",
-
-            status: "ACTIVE",
-        };
-
         return {
             success: true,
-            user: adminUser,
+            user: {
+                ...adminProfile,
+                role: "SUPER_ADMIN",
+                status: "ACTIVE",
+                isSuperAdmin: true,
+            },
         };
     }
 
     /*
-     * NORMAL BUSINESS USER
+     * Normal User
      */
-
-    const user =
-        findUserByUsername(
-            cleanUsername
-        );
+    const user = findUserByUsername(
+        username
+    );
 
     if (!user) {
         return {
             success: false,
-            message:
-                "Invalid username or password.",
+            message: "Invalid username or password.",
         };
     }
-
-    /*
-     * PASSWORD
-     */
 
     if (
         String(user.password) !==
@@ -209,72 +148,28 @@ export function authenticate(
     ) {
         return {
             success: false,
-            message:
-                "Invalid username or password.",
+            message: "Invalid username or password.",
         };
     }
 
-    /*
-     * STATUS
-     *
-     * Only ACTIVE users can login.
-     */
-
-    const status =
-        String(
-            user.status ||
-                "ACTIVE"
-        ).toUpperCase();
-
     if (
-        status !==
-        "ACTIVE"
+        String(user.status || "ACTIVE")
+            .toUpperCase() !== "ACTIVE"
     ) {
         return {
             success: false,
-            message:
-                "Your account has been deactivated. Please contact administrator.",
+            message: "Your account is deactivated.",
         };
     }
 
     /*
-     * Don't store password in
-     * authenticated session.
+     * Don't expose password in auth session.
      */
-
     const authenticatedUser = {
-        id: user.id,
-
-        name: user.name,
-
-        username: user.username,
-
-        businessName:
-            user.businessName ||
-            "",
-
-        email:
-            user.email || "",
-
-        phone:
-            user.phone || "",
-
-        plan:
-            user.plan ||
-            "BASIC",
-
-        role:
-            user.role ||
-            "USER",
-
-        status:
-            user.status ||
-            "ACTIVE",
-
-        createdAt:
-            user.createdAt ||
-            "",
+        ...user,
     };
+
+    delete authenticatedUser.password;
 
     return {
         success: true,
@@ -282,21 +177,11 @@ export function authenticate(
     };
 }
 
-/*
-|--------------------------------------------------------------------------
-| Login
-|--------------------------------------------------------------------------
-*/
-
-export function login(
-    username,
-    password
-) {
-    const result =
-        authenticate(
-            username,
-            password
-        );
+export function login(username, password) {
+    const result = authenticate(
+        username,
+        password
+    );
 
     if (!result.success) {
         return result;
@@ -310,12 +195,6 @@ export function login(
     return result;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Current User
-|--------------------------------------------------------------------------
-*/
-
 export function getCurrentUser() {
     return getStorage(
         STORAGE_KEYS.AUTH,
@@ -323,59 +202,34 @@ export function getCurrentUser() {
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Logout
-|--------------------------------------------------------------------------
-*/
-
 export function logout() {
     removeStorage(
         STORAGE_KEYS.AUTH
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Is Authenticated
-|--------------------------------------------------------------------------
-*/
-
 export function isAuthenticated() {
-    return Boolean(
-        getCurrentUser()
-    );
+    return !!getCurrentUser();
 }
-
-/*
-|--------------------------------------------------------------------------
-| Super Admin Check
-|--------------------------------------------------------------------------
-*/
 
 export function isSuperAdmin() {
-    const user =
-        getCurrentUser();
+    const user = getCurrentUser();
 
     return (
-        user?.role ===
-        "SUPER_ADMIN"
+        user?.isSuperAdmin === true ||
+        user?.role === "SUPER_ADMIN"
     );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Business User Check
-|--------------------------------------------------------------------------
-*/
-
 export function isBusinessUser() {
-    const user =
-        getCurrentUser();
+    const user = getCurrentUser();
 
-    return Boolean(
+    return (
         user &&
-            user.role !==
-                "SUPER_ADMIN"
+        !isSuperAdmin() &&
+        (
+            user.role === "USER" ||
+            user.role === "BUSINESS_USER"
+        )
     );
 }

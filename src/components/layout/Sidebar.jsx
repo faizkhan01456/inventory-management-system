@@ -30,7 +30,11 @@ import {
 
 import { useAuth } from "@/context/AuthContext";
 
-export default function Sidebar() {
+export default function Sidebar({
+    collapsed: controlledCollapsed,
+    setCollapsed: controlledSetCollapsed,
+    mobile = false,
+}) {
     const pathname = usePathname();
 
     const {
@@ -39,11 +43,24 @@ export default function Sidebar() {
         isSuperAdmin,
     } = useAuth();
 
-    const [collapsed, setCollapsed] =
+    const [internalCollapsed, setInternalCollapsed] =
         useState(false);
 
     const [mounted, setMounted] =
         useState(false);
+
+    const isControlled = controlledCollapsed !== undefined;
+    const collapsed = isControlled
+        ? controlledCollapsed
+        : internalCollapsed;
+
+    const updateCollapsed = (value) => {
+        if (controlledSetCollapsed) {
+            controlledSetCollapsed(value);
+        } else {
+            setInternalCollapsed(value);
+        }
+    };
 
     useEffect(() => {
         setMounted(true);
@@ -53,16 +70,21 @@ export default function Sidebar() {
                 "inventory_sidebar_collapsed"
             );
 
-        if (saved === "true") {
-            setCollapsed(true);
+        if (saved === "true" && !mobile) {
+            updateCollapsed(true);
         }
     }, []);
 
     const toggleSidebar = () => {
+        if (mobile) {
+            controlledSetCollapsed?.(false);
+            return;
+        }
+
         const newValue =
             !collapsed;
 
-        setCollapsed(newValue);
+        updateCollapsed(newValue);
 
         localStorage.setItem(
             "inventory_sidebar_collapsed",
@@ -268,7 +290,9 @@ export default function Sidebar() {
 
     return (
         <aside
-            className={`fixed left-0 top-0 z-40 hidden h-screen border-r border-slate-200 bg-white transition-all duration-300 lg:block ${
+            className={`fixed left-0 top-0 z-40 h-screen border-r border-slate-200 bg-white transition-all duration-300 ${
+                mobile ? "block" : "hidden lg:block"
+            } ${
                 collapsed
                     ? "w-20"
                     : "w-72"

@@ -9,6 +9,8 @@ import MobileSidebar from "@/components/layout/MobileSidebar";
 export default function UserLayout({
     children,
 }) {
+    const [collapsed, setCollapsed] =
+        useState(false);
     const [mobileSidebarOpen, setMobileSidebarOpen] =
         useState(false);
 
@@ -16,18 +18,27 @@ export default function UserLayout({
         <div className="min-h-screen bg-slate-50">
 
             {/* Desktop Sidebar */}
-            <Sidebar />
+            <Sidebar
+                collapsed={collapsed}
+                setCollapsed={setCollapsed}
+            />
 
             {/* Mobile Sidebar */}
             <MobileSidebar
-                isOpen={mobileSidebarOpen}
+                open={mobileSidebarOpen}
                 onClose={() =>
                     setMobileSidebarOpen(false)
                 }
             />
 
             {/* Main Content */}
-            <div className="lg:ml-72">
+            <div
+                className={`transition-all duration-300 ${
+                    collapsed
+                        ? "lg:ml-20"
+                        : "lg:ml-72"
+                }`}
+            >
 
                 <Topbar
                     onMenuClick={() =>

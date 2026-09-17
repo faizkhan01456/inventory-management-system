@@ -55,7 +55,7 @@ export default function AdminLayout({ children }) {
 
       <div
         className={`min-h-screen transition-all duration-300 ${
-          collapsed ? "lg:ml-[76px]" : "lg:ml-[260px]"
+          collapsed ? "lg:ml-20" : "lg:ml-72"
         }`}
       >
         <Topbar onMenuClick={() => setMobileOpen(true)} />

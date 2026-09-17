@@ -23,7 +23,11 @@ export default function MobileSidebar({ open, onClose }) {
           </button>
         </div>
 
-        <Sidebar collapsed={false} setCollapsed={() => {}} />
+        <Sidebar
+          collapsed={false}
+          setCollapsed={onClose}
+          mobile
+        />
       </div>
     </>
   );
