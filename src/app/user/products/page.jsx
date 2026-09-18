@@ -38,6 +38,7 @@ const defaultProducts = [
         status: "ACTIVE",
         description:
             "Wireless keyboard for desktop and laptop.",
+        image: "",
         createdAt: "2026-09-01",
     },
     {
@@ -54,6 +55,7 @@ const defaultProducts = [
         status: "ACTIVE",
         description:
             "Wireless optical mouse.",
+        image: "",
         createdAt: "2026-09-02",
     },
     {
@@ -70,6 +72,7 @@ const defaultProducts = [
         status: "ACTIVE",
         description:
             "Fast charging USB Type-C cable.",
+        image: "",
         createdAt: "2026-09-03",
     },
     {
@@ -86,16 +89,15 @@ const defaultProducts = [
         status: "ACTIVE",
         description:
             "Portable Bluetooth speaker.",
+        image: "",
         createdAt: "2026-09-04",
     },
 ];
 
 export default function ProductsPage() {
-    const [products, setProducts] =
-        useState([]);
+    const [products, setProducts] = useState([]);
 
-    const [search, setSearch] =
-        useState("");
+    const [search, setSearch] = useState("");
 
     const [statusFilter, setStatusFilter] =
         useState("ALL");
@@ -103,8 +105,7 @@ export default function ProductsPage() {
     const [categoryFilter, setCategoryFilter] =
         useState("ALL");
 
-    const [loading, setLoading] =
-        useState(true);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadProducts();
@@ -113,27 +114,20 @@ export default function ProductsPage() {
     const loadProducts = () => {
         setLoading(true);
 
-        const storedProducts =
-            getStorage(
-                STORAGE_KEYS.PRODUCTS,
-                null
-            );
+        const storedProducts = getStorage(
+            STORAGE_KEYS.PRODUCTS,
+            null
+        );
 
-        if (
-            Array.isArray(storedProducts)
-        ) {
-            setProducts(
-                storedProducts
-            );
+        if (Array.isArray(storedProducts)) {
+            setProducts(storedProducts);
         } else {
             setStorage(
                 STORAGE_KEYS.PRODUCTS,
                 defaultProducts
             );
 
-            setProducts(
-                defaultProducts
-            );
+            setProducts(defaultProducts);
         }
 
         setLoading(false);
@@ -161,153 +155,120 @@ export default function ProductsPage() {
         ];
     }, [products]);
 
-    const filteredProducts =
-        useMemo(() => {
-            return products.filter(
-                (product) => {
-                    const searchText =
-                        search
-                            .toLowerCase()
-                            .trim();
+    const filteredProducts = useMemo(() => {
+        return products.filter((product) => {
+            const searchText = search
+                .toLowerCase()
+                .trim();
 
-                    const matchesSearch =
-                        !searchText ||
-                        product.name
-                            ?.toLowerCase()
-                            .includes(
-                                searchText
-                            ) ||
-                        product.sku
-                            ?.toLowerCase()
-                            .includes(
-                                searchText
-                            ) ||
-                        product.category
-                            ?.toLowerCase()
-                            .includes(
-                                searchText
-                            );
+            const matchesSearch =
+                !searchText ||
+                product.name
+                    ?.toLowerCase()
+                    .includes(searchText) ||
+                product.sku
+                    ?.toLowerCase()
+                    .includes(searchText) ||
+                product.category
+                    ?.toLowerCase()
+                    .includes(searchText);
 
-                    const matchesStatus =
-                        statusFilter ===
-                            "ALL" ||
-                        product.status ===
-                            statusFilter;
+            const matchesStatus =
+                statusFilter === "ALL" ||
+                product.status === statusFilter;
 
-                    const matchesCategory =
-                        categoryFilter ===
-                            "ALL" ||
-                        product.category ===
-                            categoryFilter;
+            const matchesCategory =
+                categoryFilter === "ALL" ||
+                product.category === categoryFilter;
 
-                    return (
-                        matchesSearch &&
-                        matchesStatus &&
-                        matchesCategory
-                    );
-                }
+            return (
+                matchesSearch &&
+                matchesStatus &&
+                matchesCategory
             );
-        }, [
-            products,
-            search,
-            statusFilter,
-            categoryFilter,
-        ]);
+        });
+    }, [
+        products,
+        search,
+        statusFilter,
+        categoryFilter,
+    ]);
 
-    const totalProducts =
-        products.length;
+    const totalProducts = products.length;
 
-    const activeProducts =
-        products.filter(
-            (product) =>
-                product.status ===
-                "ACTIVE"
-        ).length;
+    const activeProducts = products.filter(
+        (product) =>
+            product.status === "ACTIVE"
+    ).length;
 
-    const inactiveProducts =
-        products.filter(
-            (product) =>
-                product.status !==
-                "ACTIVE"
-        ).length;
+    const inactiveProducts = products.filter(
+        (product) =>
+            product.status !== "ACTIVE"
+    ).length;
 
-    const lowStockProducts =
-        products.filter((product) => {
+    const lowStockProducts = products.filter(
+        (product) => {
             const stock = Number(
                 product.stock || 0
             );
 
-            const minStock =
-                Number(
-                    product.minStock ||
-                        0
-                );
+            const minStock = Number(
+                product.minStock || 0
+            );
 
             return (
-                product.status ===
-                    "ACTIVE" &&
+                product.status === "ACTIVE" &&
                 stock <= minStock
             );
-        }).length;
+        }
+    ).length;
 
-    const handleDelete = (
-        productId
-    ) => {
-        const confirmed =
-            window.confirm(
-                "Are you sure you want to delete this product?"
-            );
+    const handleDelete = (productId) => {
+        const confirmed = window.confirm(
+            "Are you sure you want to delete this product?"
+        );
 
         if (!confirmed) {
             return;
         }
 
-        const updated =
-            products.filter(
-                (product) =>
-                    product.id !==
-                    productId
-            );
+        const updated = products.filter(
+            (product) =>
+                product.id !== productId
+        );
 
         saveProducts(updated);
     };
 
-    const handleToggleStatus = (
-        productId
-    ) => {
-        const updated =
-            products.map(
-                (product) =>
-                    product.id ===
-                    productId
-                        ? {
-                              ...product,
-                              status:
-                                  product.status ===
-                                  "ACTIVE"
-                                      ? "INACTIVE"
-                                      : "ACTIVE",
-                          }
-                        : product
-            );
+    const handleToggleStatus = (productId) => {
+        const updated = products.map(
+            (product) =>
+                product.id === productId
+                    ? {
+                          ...product,
+                          status:
+                              product.status ===
+                              "ACTIVE"
+                                  ? "INACTIVE"
+                                  : "ACTIVE",
+                      }
+                    : product
+        );
 
         saveProducts(updated);
     };
 
-    const formatCurrency = (
-        amount
-    ) => {
+    const formatCurrency = (amount) => {
         return `₹${Number(
             amount || 0
-        ).toLocaleString(
-            "en-IN"
-        )}`;
+        ).toLocaleString("en-IN")}`;
     };
 
     if (loading) {
         return (
             <div className="flex min-h-[400px] items-center justify-center">
                 <div className="text-center">
+
                     <RefreshCw
                         size={28}
                         className="mx-auto animate-spin text-slate-400"
@@ -316,6 +277,7 @@ export default function ProductsPage() {
                     <p className="mt-3 text-sm text-slate-500">
                         Loading products...
                     </p>
+
                 </div>
             </div>
         );
@@ -324,7 +286,9 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
 
-            {/* HEADER */}
+            {/* =========================
+                HEADER
+            ========================== */}
 
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
 
@@ -354,15 +318,10 @@ export default function ProductsPage() {
 
                     <button
                         type="button"
-                        onClick={
-                            loadProducts
-                        }
+                        onClick={loadProducts}
                         className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                     >
-                        <RefreshCw
-                            size={17}
-                        />
-
+                        <RefreshCw size={17} />
                         Refresh
                     </button>
 
@@ -370,10 +329,7 @@ export default function ProductsPage() {
                         href="/user/products/new"
                         className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
                     >
-                        <Plus
-                            size={17}
-                        />
-
+                        <Plus size={17} />
                         Add Product
                     </Link>
 
@@ -381,52 +337,44 @@ export default function ProductsPage() {
 
             </div>
 
-            {/* STATS */}
+            {/* =========================
+                STATS
+            ========================== */}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
                 <StatCard
                     title="Total Products"
-                    value={
-                        totalProducts
-                    }
+                    value={totalProducts}
                     icon={Package}
                 />
 
                 <StatCard
                     title="Active Products"
-                    value={
-                        activeProducts
-                    }
-                    icon={
-                        CheckCircle2
-                    }
+                    value={activeProducts}
+                    icon={CheckCircle2}
                     type="success"
                 />
 
                 <StatCard
                     title="Inactive Products"
-                    value={
-                        inactiveProducts
-                    }
+                    value={inactiveProducts}
                     icon={XCircle}
                     type="danger"
                 />
 
                 <StatCard
                     title="Low Stock"
-                    value={
-                        lowStockProducts
-                    }
-                    icon={
-                        AlertTriangle
-                    }
+                    value={lowStockProducts}
+                    icon={AlertTriangle}
                     type="warning"
                 />
 
             </div>
 
-            {/* FILTERS */}
+            {/* =========================
+                FILTERS
+            ========================== */}
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 
@@ -442,13 +390,9 @@ export default function ProductsPage() {
                         <input
                             type="text"
                             value={search}
-                            onChange={(
-                                event
-                            ) =>
+                            onChange={(event) =>
                                 setSearch(
-                                    event
-                                        .target
-                                        .value
+                                    event.target.value
                                 )
                             }
                             placeholder="Search by product name, SKU or category..."
@@ -465,40 +409,25 @@ export default function ProductsPage() {
                         />
 
                         <select
-                            value={
-                                categoryFilter
-                            }
-                            onChange={(
-                                event
-                            ) =>
+                            value={categoryFilter}
+                            onChange={(event) =>
                                 setCategoryFilter(
-                                    event
-                                        .target
-                                        .value
+                                    event.target.value
                                 )
                             }
                             className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none"
                         >
-
                             <option value="ALL">
                                 All Categories
                             </option>
 
                             {categories.map(
-                                (
-                                    category
-                                ) => (
+                                (category) => (
                                     <option
-                                        key={
-                                            category
-                                        }
-                                        value={
-                                            category
-                                        }
+                                        key={category}
+                                        value={category}
                                     >
-                                        {
-                                            category
-                                        }
+                                        {category}
                                     </option>
                                 )
                             )}
@@ -508,21 +437,14 @@ export default function ProductsPage() {
                     </div>
 
                     <select
-                        value={
-                            statusFilter
-                        }
-                        onChange={(
-                            event
-                        ) =>
+                        value={statusFilter}
+                        onChange={(event) =>
                             setStatusFilter(
-                                event
-                                    .target
-                                    .value
+                                event.target.value
                             )
                         }
                         className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none"
                     >
-
                         <option value="ALL">
                             All Status
                         </option>
@@ -541,7 +463,9 @@ export default function ProductsPage() {
 
             </div>
 
-            {/* TABLE */}
+            {/* =========================
+                PRODUCT TABLE
+            ========================== */}
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
@@ -555,13 +479,9 @@ export default function ProductsPage() {
 
                         <p className="mt-1 text-xs text-slate-400">
                             Showing{" "}
-                            {
-                                filteredProducts.length
-                            }{" "}
+                            {filteredProducts.length}{" "}
                             of{" "}
-                            {
-                                products.length
-                            }{" "}
+                            {products.length}{" "}
                             products
                         </p>
 
@@ -569,8 +489,7 @@ export default function ProductsPage() {
 
                 </div>
 
-                {filteredProducts.length ===
-                0 ? (
+                {filteredProducts.length === 0 ? (
                     <div className="flex min-h-[300px] flex-col items-center justify-center p-6 text-center">
 
                         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
@@ -595,10 +514,7 @@ export default function ProductsPage() {
                             href="/user/products/new"
                             className="mt-5 flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                         >
-                            <Plus
-                                size={16}
-                            />
-
+                            <Plus size={16} />
                             Add Product
                         </Link>
 
@@ -651,9 +567,7 @@ export default function ProductsPage() {
                             <tbody>
 
                                 {filteredProducts.map(
-                                    (
-                                        product
-                                    ) => {
+                                    (product) => {
                                         const stock =
                                             Number(
                                                 product.stock ||
@@ -680,20 +594,35 @@ export default function ProductsPage() {
                                                 className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                                             >
 
-                                                {/* PRODUCT */}
+                                                {/* =====================
+                                                    PRODUCT + IMAGE
+                                                ====================== */}
 
                                                 <td className="px-6 py-5">
 
                                                     <div className="flex items-center gap-3">
 
-                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
 
-                                                            <Package
-                                                                size={
-                                                                    18
-                                                                }
-                                                                className="text-slate-500"
-                                                            />
+                                                            {product.image ? (
+                                                                <img
+                                                                    src={
+                                                                        product.image
+                                                                    }
+                                                                    alt={
+                                                                        product.name ||
+                                                                        "Product"
+                                                                    }
+                                                                    className="h-full w-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <Package
+                                                                    size={
+                                                                        18
+                                                                    }
+                                                                    className="text-slate-500"
+                                                                />
+                                                            )}
 
                                                         </div>
 
@@ -945,9 +874,7 @@ function StatCard({
                 <div
                     className={`rounded-xl p-3 ${styles[type]}`}
                 >
-                    <Icon
-                        size={20}
-                    />
+                    <Icon size={20} />
                 </div>
 
             </div>

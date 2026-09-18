@@ -9,6 +9,8 @@ import {
     Package,
     Save,
     RefreshCw,
+    ImagePlus,
+    X,
 } from "lucide-react";
 
 import {
@@ -17,21 +19,30 @@ import {
     STORAGE_KEYS,
 } from "@/lib/storage";
 
+/* =========================================
+   DEFAULT CATEGORIES
+========================================= */
+
 const defaultCategories = [
     "Electronics",
     "Accessories",
-    "Clothing",
     "Grocery",
+    "Clothing",
     "Furniture",
     "Stationery",
+    "Beauty",
+    "Sports",
     "Other",
 ];
+
+/* =========================================
+   PAGE
+========================================= */
 
 export default function NewProductPage() {
     const router = useRouter();
 
-    const [categories, setCategories] =
-        useState(defaultCategories);
+    const [categories, setCategories] = useState([]);
 
     const [form, setForm] = useState({
         name: "",
@@ -45,126 +56,238 @@ export default function NewProductPage() {
         tax: "18",
         description: "",
         status: "ACTIVE",
+        image: "",
     });
 
     const [errors, setErrors] = useState({});
 
-    const [saving, setSaving] =
-        useState(false);
+    const [saving, setSaving] = useState(false);
 
-    /*
-     * =========================================
-     * LOAD CATEGORIES
-     * =========================================
-     */
+    /* =========================================
+       LOAD CATEGORIES
+    ========================================= */
 
     useEffect(() => {
-        const storedCategories =
-            getStorage(
-                STORAGE_KEYS.CATEGORIES,
-                null
-            );
-
-        if (
-            Array.isArray(
-                storedCategories
-            ) &&
-            storedCategories.length > 0
-        ) {
-            const categoryNames =
-                storedCategories
-                    .map((category) => {
-                        if (
-                            typeof category ===
-                            "string"
-                        ) {
-                            return category;
-                        }
-
-                        return category?.name;
-                    })
-                    .filter(Boolean);
-
-            if (
-                categoryNames.length > 0
-            ) {
-                setCategories(
-                    categoryNames
-                );
-            }
-        }
+        loadCategories();
     }, []);
 
-    /*
-     * =========================================
-     * HANDLE CHANGE
-     * =========================================
-     */
+    const loadCategories = () => {
+        const storedCategories = getStorage(
+            STORAGE_KEYS.CATEGORIES,
+            []
+        );
 
-    const handleChange = (
-        field,
-        value
-    ) => {
+        let categoryNames = [];
+
+        if (
+            Array.isArray(storedCategories) &&
+            storedCategories.length > 0
+        ) {
+            categoryNames = storedCategories
+                .map((category) => {
+                    /* STRING CATEGORY */
+
+                    if (
+                        typeof category ===
+                        "string"
+                    ) {
+                        return category.trim();
+                    }
+
+                    /* OBJECT CATEGORY */
+
+                    if (
+                        typeof category ===
+                            "object" &&
+                        category !== null
+                    ) {
+                        return (
+                            category.name ||
+                            category.categoryName ||
+                            category.title ||
+                            ""
+                        );
+                    }
+
+                    return "";
+                })
+                .filter(Boolean);
+        }
+
+        const uniqueCategories = [
+            ...new Set([
+                ...defaultCategories,
+                ...categoryNames,
+            ]),
+        ];
+
+        setCategories(uniqueCategories);
+    };
+
+    /* =========================================
+       HANDLE INPUT
+    ========================================= */
+
+    const handleChange = (event) => {
+        const {
+            name,
+            value,
+        } = event.target;
+
         setForm((previous) => ({
             ...previous,
-            [field]: value,
+            [name]: value,
         }));
 
         setErrors((previous) => ({
             ...previous,
-            [field]: "",
+            [name]: "",
         }));
     };
 
-    /*
-     * =========================================
-     * GENERATE SKU
-     * =========================================
-     */
+    /* =========================================
+       IMAGE UPLOAD
+    ========================================= */
 
-    const generateSKU = () => {
-        const randomNumber =
-            Math.floor(
-                1000 +
-                    Math.random() *
-                        9000
+    const handleImageChange = (
+        event
+    ) => {
+        const file =
+            event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        /* ALLOWED FILE TYPES */
+
+        const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+        ];
+
+        if (
+            !allowedTypes.includes(
+                file.type
+            )
+        ) {
+            setErrors(
+                (previous) => ({
+                    ...previous,
+                    image:
+                        "Only JPG, PNG and WEBP images are allowed.",
+                })
             );
 
-        handleChange(
-            "sku",
-            `PROD-${randomNumber}`
+            event.target.value = "";
+
+            return;
+        }
+
+        /* MAX 2 MB */
+
+        const maxSize =
+            2 * 1024 * 1024;
+
+        if (file.size > maxSize) {
+            setErrors(
+                (previous) => ({
+                    ...previous,
+                    image:
+                        "Image size must be less than 2 MB.",
+                })
+            );
+
+            event.target.value = "";
+
+            return;
+        }
+
+        /* READ IMAGE */
+
+        const reader =
+            new FileReader();
+
+        reader.onload = () => {
+            setForm(
+                (previous) => ({
+                    ...previous,
+                    image:
+                        reader.result,
+                })
+            );
+
+            setErrors(
+                (previous) => ({
+                    ...previous,
+                    image: "",
+                })
+            );
+        };
+
+        reader.onerror = () => {
+            setErrors(
+                (previous) => ({
+                    ...previous,
+                    image:
+                        "Unable to read image.",
+                })
+            );
+        };
+
+        reader.readAsDataURL(file);
+    };
+
+    /* =========================================
+       REMOVE IMAGE
+    ========================================= */
+
+    const removeImage = () => {
+        setForm(
+            (previous) => ({
+                ...previous,
+                image: "",
+            })
+        );
+
+        setErrors(
+            (previous) => ({
+                ...previous,
+                image: "",
+            })
         );
     };
 
-    /*
-     * =========================================
-     * VALIDATION
-     * =========================================
-     */
+    /* =========================================
+       VALIDATION
+    ========================================= */
 
     const validate = () => {
         const newErrors = {};
 
-        if (
-            !form.name.trim()
-        ) {
+        /* PRODUCT NAME */
+
+        if (!form.name.trim()) {
             newErrors.name =
                 "Product name is required.";
         }
 
-        if (
-            !form.sku.trim()
-        ) {
+        /* SKU */
+
+        if (!form.sku.trim()) {
             newErrors.sku =
                 "SKU is required.";
         }
 
-        if (
-            !form.category
-        ) {
+        /* CATEGORY */
+
+        if (!form.category) {
             newErrors.category =
                 "Category is required.";
         }
+
+        /* PURCHASE PRICE */
 
         if (
             form.purchasePrice ===
@@ -174,8 +297,10 @@ export default function NewProductPage() {
             ) < 0
         ) {
             newErrors.purchasePrice =
-                "Enter a valid purchase price.";
+                "Valid purchase price is required.";
         }
+
+        /* SELLING PRICE */
 
         if (
             form.sellingPrice ===
@@ -185,16 +310,20 @@ export default function NewProductPage() {
             ) < 0
         ) {
             newErrors.sellingPrice =
-                "Enter a valid selling price.";
+                "Valid selling price is required.";
         }
+
+        /* STOCK */
 
         if (
             form.stock === "" ||
             Number(form.stock) < 0
         ) {
             newErrors.stock =
-                "Enter a valid stock quantity.";
+                "Valid opening stock is required.";
         }
+
+        /* MIN STOCK */
 
         if (
             form.minStock ===
@@ -204,189 +333,256 @@ export default function NewProductPage() {
             ) < 0
         ) {
             newErrors.minStock =
-                "Enter a valid minimum stock.";
+                "Valid minimum stock is required.";
         }
+
+        /* TAX */
 
         if (
-            form.purchasePrice !==
-                "" &&
-            form.sellingPrice !==
-                "" &&
-            Number(
-                form.sellingPrice
-            ) <
-                Number(
-                    form.purchasePrice
-                )
+            Number(form.tax || 0) <
+                0 ||
+            Number(form.tax || 0) >
+                100
         ) {
-            newErrors.sellingPrice =
-                "Selling price should not be lower than purchase price.";
+            newErrors.tax =
+                "Tax must be between 0 and 100.";
         }
 
-        return newErrors;
+        setErrors(newErrors);
+
+        return (
+            Object.keys(
+                newErrors
+            ).length === 0
+        );
     };
 
-    /*
-     * =========================================
-     * SUBMIT
-     * =========================================
-     */
+    /* =========================================
+       SUBMIT
+    ========================================= */
 
     const handleSubmit = (
         event
     ) => {
         event.preventDefault();
 
-        const validationErrors =
+        const isValid =
             validate();
 
-        if (
-            Object.keys(
-                validationErrors
-            ).length > 0
-        ) {
-            setErrors(
-                validationErrors
-            );
+        if (!isValid) {
             return;
         }
 
         setSaving(true);
 
-        const existingProducts =
-            getStorage(
-                STORAGE_KEYS.PRODUCTS,
-                []
-            );
+        try {
+            const storedProducts =
+                getStorage(
+                    STORAGE_KEYS.PRODUCTS,
+                    []
+                );
 
-        const products =
-            Array.isArray(
-                existingProducts
-            )
-                ? existingProducts
-                : [];
+            const existingProducts =
+                Array.isArray(
+                    storedProducts
+                )
+                    ? storedProducts
+                    : [];
 
-        /*
-         * Check duplicate SKU
-         */
+            /* CHECK DUPLICATE SKU */
 
-        const duplicateSKU =
-            products.some(
-                (product) =>
-                    String(
-                        product.sku ||
-                            ""
-                    )
-                        .trim()
-                        .toLowerCase() ===
+            const duplicateSku =
+                existingProducts.some(
+                    (product) =>
+                        product.sku
+                            ?.toLowerCase()
+                            .trim() ===
+                        form.sku
+                            .toLowerCase()
+                            .trim()
+                );
+
+            if (duplicateSku) {
+                setErrors({
+                    sku:
+                        "This SKU already exists.",
+                });
+
+                setSaving(false);
+
+                return;
+            }
+
+            /* CREATE PRODUCT */
+
+            const product = {
+                id: `product_${Date.now()}`,
+
+                name:
+                    form.name.trim(),
+
+                sku:
                     form.sku
                         .trim()
-                        .toLowerCase()
+                        .toUpperCase(),
+
+                category:
+                    form.category,
+
+                purchasePrice:
+                    Number(
+                        form.purchasePrice
+                    ),
+
+                sellingPrice:
+                    Number(
+                        form.sellingPrice
+                    ),
+
+                stock:
+                    Number(
+                        form.stock
+                    ),
+
+                minStock:
+                    Number(
+                        form.minStock ||
+                            0
+                    ),
+
+                unit:
+                    form.unit,
+
+                tax:
+                    Number(
+                        form.tax || 0
+                    ),
+
+                description:
+                    form.description.trim(),
+
+                status:
+                    form.status,
+
+                /* PRODUCT IMAGE */
+
+                image:
+                    form.image || "",
+
+                createdAt:
+                    new Date().toISOString(),
+            };
+
+            /* SAVE PRODUCT */
+
+            const updatedProducts =
+                [
+                    ...existingProducts,
+                    product,
+                ];
+
+            setStorage(
+                STORAGE_KEYS.PRODUCTS,
+                updatedProducts
             );
 
-        if (duplicateSKU) {
-            setErrors({
-                sku: "This SKU already exists.",
-            });
+            /* REDIRECT */
+
+            router.push(
+                "/user/products"
+            );
+        } catch (error) {
+            console.error(
+                "Create product error:",
+                error
+            );
+
+            alert(
+                "Something went wrong while creating the product."
+            );
 
             setSaving(false);
-
-            return;
         }
-
-        /*
-         * Create Product
-         */
-
-        const product = {
-            id: `product_${Date.now()}`,
-
-            name: form.name.trim(),
-
-            sku: form.sku
-                .trim()
-                .toUpperCase(),
-
-            category:
-                form.category,
-
-            purchasePrice:
-                Number(
-                    form.purchasePrice
-                ),
-
-            sellingPrice:
-                Number(
-                    form.sellingPrice
-                ),
-
-            stock:
-                Number(
-                    form.stock
-                ),
-
-            minStock:
-                Number(
-                    form.minStock
-                ),
-
-            unit:
-                form.unit,
-
-            tax:
-                Number(
-                    form.tax || 0
-                ),
-
-            description:
-                form.description.trim(),
-
-            status:
-                form.status,
-
-            createdAt:
-                new Date().toISOString(),
-        };
-
-        const updatedProducts = [
-            ...products,
-            product,
-        ];
-
-        /*
-         * Save to localStorage
-         */
-
-        setStorage(
-            STORAGE_KEYS.PRODUCTS,
-            updatedProducts
-        );
-
-        /*
-         * Redirect to product
-         */
-
-        setTimeout(() => {
-            router.push(
-                `/user/products/${product.id}`
-            );
-        }, 300);
     };
 
-    return (
-        <div className="mx-auto max-w-5xl space-y-6">
+    /* =========================================
+       LOADING
+    ========================================= */
 
-            {/* =================================
-                HEADER
-            ================================== */}
+    if (
+        categories.length === 0
+    ) {
+        return (
+            <div className="space-y-6">
 
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
 
                     <Link
                         href="/user/products"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    >
+                        <ArrowLeft
+                            size={18}
+                        />
+                    </Link>
+
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            Add Product
+                        </h1>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                            Create a new product and add it to your inventory.
+                        </p>
+                    </div>
+
+                </div>
+
+                {/* FORM WITHOUT WAITING FOR CATEGORY */}
+
+                <ProductForm
+                    form={form}
+                    errors={errors}
+                    saving={saving}
+                    categories={
+                        defaultCategories
+                    }
+                    handleChange={
+                        handleChange
+                    }
+                    handleImageChange={
+                        handleImageChange
+                    }
+                    removeImage={
+                        removeImage
+                    }
+                    handleSubmit={
+                        handleSubmit
+                    }
+                />
+
+            </div>
+        );
+    }
+
+    /* =========================================
+       PAGE
+    ========================================= */
+
+    return (
+        <div className="space-y-6">
+
+            {/* =================================
+                HEADER
+            ================================= */}
+
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+
+                <div className="flex items-center gap-3">
+
+                    <Link
+                        href="/user/products"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     >
                         <ArrowLeft
                             size={18}
@@ -398,7 +594,7 @@ export default function NewProductPage() {
                         <div className="flex items-center gap-2">
 
                             <Package
-                                size={23}
+                                size={24}
                                 className="text-slate-700"
                             />
 
@@ -409,8 +605,7 @@ export default function NewProductPage() {
                         </div>
 
                         <p className="mt-1 text-sm text-slate-500">
-                            Create a new product
-                            for your inventory.
+                            Create a new product and add it to your inventory.
                         </p>
 
                     </div>
@@ -421,558 +616,544 @@ export default function NewProductPage() {
 
             {/* =================================
                 FORM
-            ================================== */}
+            ================================= */}
 
-            <form
-                onSubmit={
+            <ProductForm
+                form={form}
+                errors={errors}
+                saving={saving}
+                categories={
+                    categories
+                }
+                handleChange={
+                    handleChange
+                }
+                handleImageChange={
+                    handleImageChange
+                }
+                removeImage={
+                    removeImage
+                }
+                handleSubmit={
                     handleSubmit
                 }
-                className="space-y-6"
-            >
-
-                {/* =================================
-                    BASIC INFORMATION
-                ================================== */}
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-                    <div>
-
-                        <h2 className="text-base font-bold text-slate-900">
-                            Basic Information
-                        </h2>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                            Enter the basic
-                            details of your
-                            product.
-                        </p>
-
-                    </div>
-
-                    <div className="mt-6 grid gap-5 md:grid-cols-2">
-
-                        {/* PRODUCT NAME */}
-
-                        <div>
-
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-
-                                Product Name
-
-                                <span className="ml-1 text-red-500">
-                                    *
-                                </span>
-
-                            </label>
-
-                            <input
-                                type="text"
-                                value={
-                                    form.name
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    handleChange(
-                                        "name",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                                placeholder="e.g. Wireless Mouse"
-                                className={`h-12 w-full rounded-xl border bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:bg-white ${
-                                    errors.name
-                                        ? "border-red-300"
-                                        : "border-slate-200 focus:border-slate-400"
-                                }`}
-                            />
-
-                            {errors.name && (
-                                <p className="mt-1 text-xs text-red-500">
-                                    {
-                                        errors.name
-                                    }
-                                </p>
-                            )}
-
-                        </div>
-
-                        {/* SKU */}
-
-                        <div>
-
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-
-                                SKU
-
-                                <span className="ml-1 text-red-500">
-                                    *
-                                </span>
-
-                            </label>
-
-                            <div className="flex gap-2">
-
-                                <input
-                                    type="text"
-                                    value={
-                                        form.sku
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        handleChange(
-                                            "sku",
-                                            event
-                                                .target
-                                                .value
-                                        )
-                                    }
-                                    placeholder="e.g. MS-WL-001"
-                                    className={`h-12 min-w-0 flex-1 rounded-xl border bg-slate-50 px-4 text-sm uppercase text-slate-800 outline-none transition focus:bg-white ${
-                                        errors.sku
-                                            ? "border-red-300"
-                                            : "border-slate-200 focus:border-slate-400"
-                                    }`}
-                                />
-
-                                <button
-                                    type="button"
-                                    onClick={
-                                        generateSKU
-                                    }
-                                    className="flex h-12 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
-                                >
-
-                                    <RefreshCw
-                                        size={
-                                            15
-                                        }
-                                    />
-
-                                    Generate
-
-                                </button>
-
-                            </div>
-
-                            {errors.sku && (
-                                <p className="mt-1 text-xs text-red-500">
-                                    {
-                                        errors.sku
-                                    }
-                                </p>
-                            )}
-
-                        </div>
-
-                        {/* CATEGORY */}
-
-                        <div>
-
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-
-                                Category
-
-                                <span className="ml-1 text-red-500">
-                                    *
-                                </span>
-
-                            </label>
-
-                            <select
-                                value={
-                                    form.category
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    handleChange(
-                                        "category",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                                className={`h-12 w-full rounded-xl border bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:bg-white ${
-                                    errors.category
-                                        ? "border-red-300"
-                                        : "border-slate-200 focus:border-slate-400"
-                                }`}
-                            >
-
-                                <option value="">
-                                    Select category
-                                </option>
-
-                                {categories.map(
-                                    (
-                                        category
-                                    ) => (
-                                        <option
-                                            key={
-                                                category
-                                            }
-                                            value={
-                                                category
-                                            }
-                                        >
-                                            {
-                                                category
-                                            }
-                                        </option>
-                                    )
-                                )}
-
-                            </select>
-
-                            {errors.category && (
-                                <p className="mt-1 text-xs text-red-500">
-                                    {
-                                        errors.category
-                                    }
-                                </p>
-                            )}
-
-                        </div>
-
-                        {/* UNIT */}
-
-                        <div>
-
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-                                Unit
-                            </label>
-
-                            <select
-                                value={
-                                    form.unit
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    handleChange(
-                                        "unit",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
-                            >
-
-                                <option value="PCS">
-                                    PCS
-                                </option>
-
-                                <option value="BOX">
-                                    BOX
-                                </option>
-
-                                <option value="KG">
-                                    KG
-                                </option>
-
-                                <option value="GRAM">
-                                    GRAM
-                                </option>
-
-                                <option value="LITRE">
-                                    LITRE
-                                </option>
-
-                                <option value="METER">
-                                    METER
-                                </option>
-
-                                <option value="PACK">
-                                    PACK
-                                </option>
-
-                                <option value="DOZEN">
-                                    DOZEN
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                {/* =================================
-                    PRICING & STOCK
-                ================================== */}
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-                    <div>
-
-                        <h2 className="text-base font-bold text-slate-900">
-                            Pricing & Stock
-                        </h2>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                            Configure pricing,
-                            tax and stock
-                            information.
-                        </p>
-
-                    </div>
-
-                    <div className="mt-6 grid gap-5 md:grid-cols-2">
-
-                        {/* PURCHASE PRICE */}
-
-                        <NumberField
-                            label="Purchase Price"
-                            required
-                            value={
-                                form.purchasePrice
-                            }
-                            onChange={(
-                                value
-                            ) =>
-                                handleChange(
-                                    "purchasePrice",
-                                    value
-                                )
-                            }
-                            placeholder="e.g. 500"
-                            error={
-                                errors.purchasePrice
-                            }
-                        />
-
-                        {/* SELLING PRICE */}
-
-                        <NumberField
-                            label="Selling Price"
-                            required
-                            value={
-                                form.sellingPrice
-                            }
-                            onChange={(
-                                value
-                            ) =>
-                                handleChange(
-                                    "sellingPrice",
-                                    value
-                                )
-                            }
-                            placeholder="e.g. 799"
-                            error={
-                                errors.sellingPrice
-                            }
-                        />
-
-                        {/* OPENING STOCK */}
-
-                        <NumberField
-                            label="Opening Stock"
-                            required
-                            value={
-                                form.stock
-                            }
-                            onChange={(
-                                value
-                            ) =>
-                                handleChange(
-                                    "stock",
-                                    value
-                                )
-                            }
-                            placeholder="e.g. 50"
-                            error={
-                                errors.stock
-                            }
-                        />
-
-                        {/* MIN STOCK */}
-
-                        <NumberField
-                            label="Minimum Stock"
-                            required
-                            value={
-                                form.minStock
-                            }
-                            onChange={(
-                                value
-                            ) =>
-                                handleChange(
-                                    "minStock",
-                                    value
-                                )
-                            }
-                            placeholder="e.g. 10"
-                            error={
-                                errors.minStock
-                            }
-                        />
-
-                        {/* TAX */}
-
-                        <NumberField
-                            label="Tax (%)"
-                            value={
-                                form.tax
-                            }
-                            onChange={(
-                                value
-                            ) =>
-                                handleChange(
-                                    "tax",
-                                    value
-                                )
-                            }
-                            placeholder="e.g. 18"
-                        />
-
-                        {/* STATUS */}
-
-                        <div>
-
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">
-                                Status
-                            </label>
-
-                            <select
-                                value={
-                                    form.status
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    handleChange(
-                                        "status",
-                                        event
-                                            .target
-                                            .value
-                                    )
-                                }
-                                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
-                            >
-
-                                <option value="ACTIVE">
-                                    Active
-                                </option>
-
-                                <option value="INACTIVE">
-                                    Inactive
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                {/* =================================
-                    DESCRIPTION
-                ================================== */}
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-
-                    <h2 className="text-base font-bold text-slate-900">
-                        Description
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-400">
-                        Add additional
-                        information about
-                        the product.
-                    </p>
-
-                    <textarea
-                        value={
-                            form.description
-                        }
-                        onChange={(
-                            event
-                        ) =>
-                            handleChange(
-                                "description",
-                                event
-                                    .target
-                                    .value
-                            )
-                        }
-                        rows={5}
-                        placeholder="Enter product description..."
-                        className="mt-5 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-slate-400 focus:bg-white"
-                    />
-
-                </div>
-
-                {/* =================================
-                    BUTTONS
-                ================================== */}
-
-                <div className="flex justify-end gap-3 pb-6">
-
-                    <Link
-                        href="/user/products"
-                        className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                        Cancel
-                    </Link>
-
-                    <button
-                        type="submit"
-                        disabled={
-                            saving
-                        }
-                        className="flex items-center gap-2 rounded-xl bg-slate-900 px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-
-                        {saving ? (
-                            <>
-                                <RefreshCw
-                                    size={
-                                        17
-                                    }
-                                    className="animate-spin"
-                                />
-
-                                Saving...
-                            </>
-                        ) : (
-                            <>
-                                <Save
-                                    size={
-                                        17
-                                    }
-                                />
-
-                                Save Product
-                            </>
-                        )}
-
-                    </button>
-
-                </div>
-
-            </form>
+            />
 
         </div>
     );
 }
 
 /* =========================================
-   NUMBER FIELD
+   PRODUCT FORM
 ========================================= */
 
-function NumberField({
+function ProductForm({
+    form,
+    errors,
+    saving,
+    categories,
+    handleChange,
+    handleImageChange,
+    removeImage,
+    handleSubmit,
+}) {
+    return (
+        <form
+            onSubmit={
+                handleSubmit
+            }
+            className="space-y-6"
+        >
+
+            {/* =================================
+                BASIC INFORMATION
+            ================================= */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+                <div className="mb-6">
+
+                    <h2 className="text-base font-bold text-slate-900">
+                        Basic Information
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                        Enter basic product information.
+                    </p>
+
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+
+                    {/* PRODUCT NAME */}
+
+                    <FormInput
+                        label="Product Name"
+                        name="name"
+                        value={
+                            form.name
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="e.g. Wireless Keyboard"
+                        required
+                        error={
+                            errors.name
+                        }
+                    />
+
+                    {/* SKU */}
+
+                    <FormInput
+                        label="SKU"
+                        name="sku"
+                        value={
+                            form.sku
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="e.g. KB-WL-001"
+                        required
+                        error={
+                            errors.sku
+                        }
+                    />
+
+                    {/* CATEGORY */}
+
+                    <FormSelect
+                        label="Category"
+                        name="category"
+                        value={
+                            form.category
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        required
+                        error={
+                            errors.category
+                        }
+                    >
+
+                        <option value="">
+                            Select Category
+                        </option>
+
+                        {categories.map(
+                            (
+                                category
+                            ) => (
+                                <option
+                                    key={
+                                        category
+                                    }
+                                    value={
+                                        category
+                                    }
+                                >
+                                    {
+                                        category
+                                    }
+                                </option>
+                            )
+                        )}
+
+                    </FormSelect>
+
+                    {/* UNIT */}
+
+                    <FormSelect
+                        label="Unit"
+                        name="unit"
+                        value={
+                            form.unit
+                        }
+                        onChange={
+                            handleChange
+                        }
+                    >
+
+                        <option value="PCS">
+                            PCS
+                        </option>
+
+                        <option value="BOX">
+                            BOX
+                        </option>
+
+                        <option value="KG">
+                            KG
+                        </option>
+
+                        <option value="GRAM">
+                            GRAM
+                        </option>
+
+                        <option value="LTR">
+                            LTR
+                        </option>
+
+                        <option value="MTR">
+                            MTR
+                        </option>
+
+                    </FormSelect>
+
+                </div>
+
+            </div>
+
+            {/* =================================
+                PRODUCT IMAGE
+            ================================= */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+                <div className="mb-6">
+
+                    <h2 className="text-base font-bold text-slate-900">
+                        Product Image
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                        Upload JPG, PNG or WEBP image. Maximum size 2 MB.
+                    </p>
+
+                </div>
+
+                {form.image ? (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+
+                        {/* IMAGE PREVIEW */}
+
+                        <div className="relative h-40 w-40 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+
+                            <img
+                                src={
+                                    form.image
+                                }
+                                alt="Product preview"
+                                className="h-full w-full object-cover"
+                            />
+
+                        </div>
+
+                        {/* IMAGE ACTIONS */}
+
+                        <div className="flex flex-wrap gap-2">
+
+                            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+
+                                <ImagePlus
+                                    size={17}
+                                />
+
+                                Change Image
+
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={
+                                        handleImageChange
+                                    }
+                                    className="hidden"
+                                />
+
+                            </label>
+
+                            <button
+                                type="button"
+                                onClick={
+                                    removeImage
+                                }
+                                className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100"
+                            >
+
+                                <X
+                                    size={17}
+                                />
+
+                                Remove
+
+                            </button>
+
+                        </div>
+
+                    </div>
+                ) : (
+                    <label className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 text-center transition hover:border-slate-300 hover:bg-white">
+
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm">
+
+                            <ImagePlus
+                                size={25}
+                            />
+
+                        </div>
+
+                        <p className="mt-4 text-sm font-bold text-slate-700">
+                            Click to upload product image
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                            JPG, PNG or WEBP · Max 2 MB
+                        </p>
+
+                        <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={
+                                handleImageChange
+                            }
+                            className="hidden"
+                        />
+
+                    </label>
+                )}
+
+                {errors.image && (
+                    <p className="mt-3 text-sm font-medium text-red-600">
+                        {
+                            errors.image
+                        }
+                    </p>
+                )}
+
+            </div>
+
+            {/* =================================
+                PRICING & STOCK
+            ================================= */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+                <div className="mb-6">
+
+                    <h2 className="text-base font-bold text-slate-900">
+                        Pricing & Stock
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                        Configure pricing and opening inventory.
+                    </p>
+
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+                    {/* PURCHASE PRICE */}
+
+                    <FormNumber
+                        label="Purchase Price"
+                        name="purchasePrice"
+                        value={
+                            form.purchasePrice
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="0"
+                        min="0"
+                        error={
+                            errors.purchasePrice
+                        }
+                    />
+
+                    {/* SELLING PRICE */}
+
+                    <FormNumber
+                        label="Selling Price"
+                        name="sellingPrice"
+                        value={
+                            form.sellingPrice
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="0"
+                        min="0"
+                        error={
+                            errors.sellingPrice
+                        }
+                    />
+
+                    {/* OPENING STOCK */}
+
+                    <FormNumber
+                        label="Opening Stock"
+                        name="stock"
+                        value={
+                            form.stock
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="0"
+                        min="0"
+                        error={
+                            errors.stock
+                        }
+                    />
+
+                    {/* MINIMUM STOCK */}
+
+                    <FormNumber
+                        label="Minimum Stock"
+                        name="minStock"
+                        value={
+                            form.minStock
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="10"
+                        min="0"
+                        error={
+                            errors.minStock
+                        }
+                    />
+
+                    {/* TAX */}
+
+                    <FormNumber
+                        label="Tax (%)"
+                        name="tax"
+                        value={
+                            form.tax
+                        }
+                        onChange={
+                            handleChange
+                        }
+                        placeholder="18"
+                        min="0"
+                        max="100"
+                        error={
+                            errors.tax
+                        }
+                    />
+
+                    {/* STATUS */}
+
+                    <FormSelect
+                        label="Status"
+                        name="status"
+                        value={
+                            form.status
+                        }
+                        onChange={
+                            handleChange
+                        }
+                    >
+
+                        <option value="ACTIVE">
+                            Active
+                        </option>
+
+                        <option value="INACTIVE">
+                            Inactive
+                        </option>
+
+                    </FormSelect>
+
+                </div>
+
+            </div>
+
+            {/* =================================
+                DESCRIPTION
+            ================================= */}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+                <div className="mb-6">
+
+                    <h2 className="text-base font-bold text-slate-900">
+                        Description
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                        Add additional information about the product.
+                    </p>
+
+                </div>
+
+                <textarea
+                    name="description"
+                    value={
+                        form.description
+                    }
+                    onChange={
+                        handleChange
+                    }
+                    rows={5}
+                    placeholder="Write product description..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                />
+
+            </div>
+
+            {/* =================================
+                ACTIONS
+            ================================= */}
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+                <Link
+                    href="/user/products"
+                    className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                    Cancel
+                </Link>
+
+                <button
+                    type="submit"
+                    disabled={
+                        saving
+                    }
+                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+
+                    {saving ? (
+                        <>
+                            <RefreshCw
+                                size={17}
+                                className="animate-spin"
+                            />
+
+                            Saving...
+                        </>
+                    ) : (
+                        <>
+                            <Save
+                                size={17}
+                            />
+
+                            Save Product
+                        </>
+                    )}
+
+                </button>
+
+            </div>
+
+        </form>
+    );
+}
+
+/* =========================================
+   FORM INPUT
+========================================= */
+
+function FormInput({
     label,
-    required = false,
+    name,
     value,
     onChange,
     placeholder,
+    required = false,
     error,
 }) {
     return (
@@ -991,28 +1172,142 @@ function NumberField({
             </label>
 
             <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={value}
-                onChange={(event) =>
-                    onChange(
-                        event.target.value
-                    )
+                type="text"
+                name={name}
+                value={
+                    value
+                }
+                onChange={
+                    onChange
                 }
                 placeholder={
                     placeholder
                 }
-                className={`h-12 w-full rounded-xl border bg-slate-50 px-4 text-sm text-slate-800 outline-none focus:bg-white ${
+                className={`h-11 w-full rounded-xl border ${
                     error
                         ? "border-red-300"
-                        : "border-slate-200 focus:border-slate-400"
-                }`}
+                        : "border-slate-200"
+                } bg-slate-50 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white`}
             />
 
             {error && (
-                <p className="mt-1 text-xs text-red-500">
-                    {error}
+                <p className="mt-1.5 text-xs font-medium text-red-600">
+                    {
+                        error
+                    }
+                </p>
+            )}
+
+        </div>
+    );
+}
+
+/* =========================================
+   FORM NUMBER
+========================================= */
+
+function FormNumber({
+    label,
+    name,
+    value,
+    onChange,
+    placeholder,
+    min,
+    max,
+    error,
+}) {
+    return (
+        <div>
+
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+                {label}
+            </label>
+
+            <input
+                type="number"
+                name={name}
+                value={
+                    value
+                }
+                onChange={
+                    onChange
+                }
+                placeholder={
+                    placeholder
+                }
+                min={min}
+                max={max}
+                className={`h-11 w-full rounded-xl border ${
+                    error
+                        ? "border-red-300"
+                        : "border-slate-200"
+                } bg-slate-50 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white`}
+            />
+
+            {error && (
+                <p className="mt-1.5 text-xs font-medium text-red-600">
+                    {
+                        error
+                    }
+                </p>
+            )}
+
+        </div>
+    );
+}
+
+/* =========================================
+   FORM SELECT
+========================================= */
+
+function FormSelect({
+    label,
+    name,
+    value,
+    onChange,
+    children,
+    required = false,
+    error,
+}) {
+    return (
+        <div>
+
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+
+                {label}
+
+                {required && (
+                    <span className="ml-1 text-red-500">
+                        *
+                    </span>
+                )}
+
+            </label>
+
+            <select
+                name={name}
+                value={
+                    value
+                }
+                onChange={
+                    onChange
+                }
+                className={`h-11 w-full rounded-xl border ${
+                    error
+                        ? "border-red-300"
+                        : "border-slate-200"
+                } bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white`}
+            >
+                {
+                    children
+                }
+            </select>
+
+            {error && (
+                <p className="mt-1.5 text-xs font-medium text-red-600">
+                    {
+                        error
+                    }
                 </p>
             )}
 
